@@ -27,6 +27,9 @@ export const api = {
   /** GET /api/v1/simulation/locations */
   locations: () => _json('/api/v1/simulation/locations'),
 
+  /** GET /api/v1/simulation/locations/:code */
+  locationDetail: (code) => _json(`/api/v1/simulation/locations/${code.toUpperCase()}`),
+
   /**
    * POST /api/v1/simulation/run
    * Runs the full 7-agent LangGraph pipeline and returns forecast.

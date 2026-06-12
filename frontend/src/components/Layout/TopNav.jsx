@@ -33,7 +33,7 @@ function BMWMLogo() {
 }
 
 export default function TopNav() {
-  const { activeView, setActiveView, locationKey, changeLocation, isLoading } = useIDTCC();
+  const { activeView, setActiveView, locationKey, changeLocation, isLoading, locations } = useIDTCC();
 
   return (
     <nav style={{
@@ -78,9 +78,18 @@ export default function TopNav() {
               fontFamily: 'Inter,sans-serif',
             }}
           >
-            {Object.values(LOCATION_CATALOGUE).map(loc => (
-              <option key={loc.key} value={loc.key}>{loc.name}</option>
-            ))}
+            {locations?.groups?.length > 0
+              ? locations.groups.map(group => (
+                <optgroup key={group.state} label={group.state}>
+                  {group.cities.map(city => (
+                    <option key={city.code} value={city.code}>{city.name}</option>
+                  ))}
+                </optgroup>
+              ))
+              : Object.values(LOCATION_CATALOGUE).map(loc => (
+                <option key={loc.key} value={loc.key}>{loc.name}</option>
+              ))
+            }
           </select>
         </div>
       </div>

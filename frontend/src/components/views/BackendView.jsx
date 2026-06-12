@@ -2,7 +2,7 @@
  * BackendView — triggers the FastAPI + LangGraph backend simulation
  * and streams agent events via SSE. Displays LangSmith trace link.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell,
@@ -213,13 +213,21 @@ export default function BackendView() {
     radius_km: 120,
     track_shift_km: 0,
   });
-  const [agentStatus, setAgentStatus] = useState({});  // key -> { status, output, elapsed }
-  const [forecast, setForecast]       = useState(null);
-  const [running, setRunning]         = useState(false);
-  const [error, setError]             = useState(null);
+  const [agentStatus, setAgentStatus]   = useState({});
+  const [forecast, setForecast]         = useState(null);
+  const [running, setRunning]           = useState(false);
+  const [error, setError]               = useState(null);
   const [langsmithUrl, setLangsmithUrl] = useState(null);
   const [backendOnline, setBackendOnline] = useState(null);
+  const [cityGroups, setCityGroups]     = useState([]);
   const startRef = useRef({});
+
+  // Load 35 cities on mount
+  useEffect(() => {
+    api.locations()
+      .then(res => setCityGroups(res.groups || []))
+      .catch(() => {});
+  }, []);
 
   // Check backend health
   const checkBackend = useCallback(async () => {
@@ -337,7 +345,7 @@ export default function BackendView() {
         <div className="label-upper" style={{ color: '#7e7e7e', marginBottom: 20 }}>Simulation Parameters</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
-            { key: 'location_code',       label: 'Location',         type: 'select', options: [{v:'CHN',l:'Chennai'},{v:'MUM',l:'Mumbai'},{v:'VIJ',l:'Vijayawada'}] },
+            { key: 'location_code', label: 'Location', type: 'city_select' },
             { key: 'twin_count',          label: 'Twin Count',       type: 'number', min: 100, max: 50000, step: 100 },
             { key: 'cyclone_name',        label: 'Cyclone Name',     type: 'text' },
             { key: 'max_wind_kmh',        label: 'Max Wind (km/h)',  type: 'number', min: 60, max: 300, step: 5 },
@@ -347,7 +355,7 @@ export default function BackendView() {
           ].map(field => (
             <div key={field.key}>
               <div className="label-upper" style={{ color: '#7e7e7e', fontSize: 10, marginBottom: 6 }}>{field.label}</div>
-              {field.type === 'select' ? (
+              {field.type === 'city_select' ? (
                 <select
                   value={form[field.key]}
                   onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
@@ -355,7 +363,20 @@ export default function BackendView() {
                   disabled={running}
                   style={{ height: 40, padding: '0 12px', fontSize: 13 }}
                 >
-                  {field.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                  {cityGroups.length > 0
+                    ? cityGroups.map(group => (
+                      <optgroup key={group.state} label={group.state}>
+                        {group.cities.map(city => (
+                          <option key={city.code} value={city.code}>{city.name}</option>
+                        ))}
+                      </optgroup>
+                    ))
+                    : [
+                      <option key="CHN" value="CHN">Chennai</option>,
+                      <option key="MUM" value="MUM">Mumbai</option>,
+                      <option key="VIJ" value="VIJ">Vijayawada</option>,
+                    ]
+                  }
                 </select>
               ) : (
                 <input
