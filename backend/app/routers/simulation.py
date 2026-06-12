@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.models.schemas import SimulationRequest, ForecastResponse
-from app.core.locations import LOCATION_CATALOGUE, get_location
+from app.core.locations import get_location, list_locations, list_states
 from app.graph.orchestrator import get_graph
 
 router = APIRouter(prefix="/simulation", tags=["simulation"])
@@ -128,14 +128,23 @@ async def stream_simulation(req: SimulationRequest):
 
 
 @router.get("/locations")
-async def list_locations():
-    return [
-        {
-            "code":  code,
-            "name":  loc["name"],
-            "event": loc["event"],
-            "center": loc["center"],
-            "damage_cr": loc.get("damage_cr", 0),
-        }
-        for code, loc in LOCATION_CATALOGUE.items()
-    ]
+async def get_locations(state: str | None = None):
+    """Return all 35+ cities grouped by state.
+
+    Optional ?state=Tamil+Nadu filter returns only cities for that state.
+    """
+    groups = list_locations()
+    if state:
+        groups = [g for g in groups if g["state"].lower() == state.lower()]
+    return {"states": list_states(), "groups": groups, "total": sum(len(g["cities"]) for g in groups)}
+
+
+@router.get("/locations/{code}")
+async def get_location_detail(code: str):
+    """Return a single city's full enriched record (OSM + GDACS data included)."""
+    try:
+        loc = get_location(code)
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=str(exc))
+    return loc
