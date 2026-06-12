@@ -280,6 +280,12 @@ input[type="range"]::-webkit-slider-thumb {
   z-index: 9999;
 }
 
+/* Pulse animation for agent status dots */
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
 /* Spinner */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {

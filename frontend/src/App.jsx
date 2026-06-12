@@ -8,6 +8,7 @@ import AgentsView from './components/views/AgentsView.jsx';
 import Simulator from './components/views/Simulator.jsx';
 import SafeZones from './components/views/SafeZones.jsx';
 import AuditTrail from './components/views/AuditTrail.jsx';
+import BackendView from './components/views/BackendView.jsx';
 
 function LoadingScreen({ message }) {
   return (
@@ -52,6 +53,7 @@ const VIEW_COMPONENTS = {
   simulator: Simulator,
   safezones: SafeZones,
   audit:     AuditTrail,
+  backend:   BackendView,
 };
 
 export default function App() {

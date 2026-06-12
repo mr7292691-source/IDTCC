@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { key: 'simulator', label: 'Simulator' },
   { key: 'safezones', label: 'Safe Zones' },
   { key: 'audit',     label: 'Audit' },
+  { key: 'backend',   label: '⬡ Backend API' },
 ];
 
 // BMW M logo as inline SVG (tricolor + M wordmark)

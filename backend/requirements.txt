@@ -1,0 +1,26 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+httpx==0.28.1
+sse-starlette==2.1.3
+
+# LangChain ecosystem
+langchain==0.3.14
+langchain-core==0.3.29
+langchain-anthropic==0.3.3
+langchain-openai==0.2.14
+langgraph==0.2.60
+langsmith==0.2.10
+
+# Data / ML
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+torch==2.5.1
+faker==33.1.0
+requests==2.32.3
+
+# FAISS for fraud detection
+faiss-cpu==1.9.0
