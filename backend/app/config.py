@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
 
 
 class Settings(BaseSettings):
@@ -27,11 +26,6 @@ class Settings(BaseSettings):
     default_location: str = "CHN"
     default_twin_count: int = 50_000
     log_level: str = "INFO"
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
-
-    @property
-    def cors_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.cors_origins.split(",")]
 
 
 settings = Settings()
