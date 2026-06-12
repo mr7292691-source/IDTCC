@@ -239,10 +239,14 @@ export function IDTCCProvider({ children }) {
       ]);
 
       setLoadingMsg('Processing results...');
-      return mapApiResponse(forecast, req, twinsData, locDetail || staticLoc);
+      console.log('[IDTCC] Backend response received:', { forecast, twinsData });
+      const result = mapApiResponse(forecast, req, twinsData, locDetail || staticLoc);
+      console.log('[IDTCC] Mapped context:', result);
+      return result;
 
     } catch (_backendErr) {
       // ── Local fallback ────────────────────────────────────────────────────────
+      console.error('[IDTCC] Backend unavailable, falling back to local:', _backendErr);
       setBackendOnline(false);
       const loc = LOCATION_CATALOGUE[locKey];
       if (!loc) throw new Error(`Unknown location: ${locKey}`);
