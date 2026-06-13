@@ -4,3 +4,4 @@ node_modules
 .claude/
 .github/
 *pptx
+__pycache__/
