@@ -1,9 +1,9 @@
 """LLM-as-Judge — independent prediction evaluator."""
 from __future__ import annotations
 import json
-import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from app.core.llm import call_llm_simple
+from app.core.guardrails import extract_json, coerce_float
 
 
 JUDGE_SYSTEM = (
@@ -22,24 +22,25 @@ JUDGE_SYSTEM = (
 
 
 def _parse_judge_response(raw: str) -> Dict[str, Any]:
-    # Extract JSON from response
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not match:
+    data = extract_json(raw)
+    if data is None:
         return _fallback_score()
     try:
-        data = json.loads(match.group())
-        scores = data.get("scores", {})
+        scores = data.get("scores", {}) or {}
+        overall = coerce_float(data.get("overall_score", 7.0), 7.0, 0.0, 10.0)
         return {
-            "factual_accuracy":             float(scores.get("factual_accuracy", 7.0)),
-            "completeness":                 float(scores.get("completeness", 7.0)),
-            "actionability":                float(scores.get("actionability", 7.0)),
-            "vulnerable_population_safety": float(scores.get("vulnerable_population_safety", 7.0)),
-            "financial_soundness":          float(scores.get("financial_soundness", 7.0)),
-            "overall_score":                float(data.get("overall_score", 7.0)),
-            "verdict":                      data.get("verdict", "APPROVED"),
-            "approved":                     bool(data.get("approved", True)),
+            "factual_accuracy":             coerce_float(scores.get("factual_accuracy", 7.0), 7.0, 0, 10),
+            "completeness":                 coerce_float(scores.get("completeness", 7.0), 7.0, 0, 10),
+            "actionability":                coerce_float(scores.get("actionability", 7.0), 7.0, 0, 10),
+            "vulnerable_population_safety": coerce_float(scores.get("vulnerable_population_safety", 7.0), 7.0, 0, 10),
+            "financial_soundness":          coerce_float(scores.get("financial_soundness", 7.0), 7.0, 0, 10),
+            "overall_score":                overall,
+            "verdict":                      str(data.get("verdict", "APPROVED")),
+            "approved":                     bool(data.get("approved", overall >= 6.0)),
             "critique":                     str(data.get("critique", "")),
             "improvements":                 list(data.get("improvements", [])),
+            # Confidence is the audit score normalised to 0-1 (independent signal).
+            "confidence":                   round(overall / 10.0, 3),
         }
     except Exception:
         return _fallback_score()
@@ -53,6 +54,7 @@ def _fallback_score() -> Dict[str, Any]:
         "verdict": "APPROVED", "approved": True,
         "critique": "Evaluation unavailable — LLM offline",
         "improvements": [],
+        "confidence": 0.5,
     }
 
 
@@ -65,5 +67,5 @@ def evaluate(pred_type: str, prediction: Dict, context: Dict) -> Dict[str, Any]:
         f"Prediction:\n{pred_str}\n\n"
         "Evaluate now and return JSON only."
     )
-    raw = call_llm_simple(JUDGE_SYSTEM, user, max_tokens=400)
+    raw = call_llm_simple(JUDGE_SYSTEM, user, max_tokens=400, agent="judge")
     return _parse_judge_response(raw)

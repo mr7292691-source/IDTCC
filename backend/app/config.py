@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,18 +16,27 @@ class Settings(BaseSettings):
     vllm_model: str = "Qwen3-14B"
     # Set True for Qwen3 models; strips <think>...</think> from outputs
     vllm_model_has_thinking: bool = True
+    # Per-request token ceiling for agent calls
+    vllm_max_tokens: int = 1024
 
     # Anthropic cloud (fallback / optional)
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
 
+    # LangSmith observability
     langchain_tracing_v2: str = "true"
     langchain_api_key: str = ""
     langchain_project: str = "idtcc-production"
 
+    # Resilience: retries + timeout for every LLM call
+    llm_max_retries: int = 2
+    llm_timeout_seconds: float = 60.0
+
+    # App
     default_location: str = "CHN"
     default_twin_count: int = 50_000
     log_level: str = "INFO"
+    json_logs: bool = False  # set True for machine-parseable logs
 
 
 settings = Settings()

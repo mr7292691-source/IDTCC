@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 from app.core.llm import call_llm_simple
+from app.core.agent_base import instrument, attach, compute_confidence
 
 
 SYSTEM = (
@@ -28,6 +29,7 @@ def _build_feature_vector(row: pd.Series) -> np.ndarray:
     ], dtype=np.float32)
 
 
+@instrument("fraud")
 def run(df: pd.DataFrame) -> Dict[str, Any]:
     # 1. Known fraud flags
     known = df[df["prior_fraud_flag"]].copy()
@@ -44,9 +46,12 @@ def run(df: pd.DataFrame) -> Dict[str, Any]:
 
     # 3. FAISS nearest-neighbour anomaly — requires faiss-cpu
     nn_flagged: List[str] = []
+    faiss_used = False
+    sample_size = 0
     try:
         import faiss
         sample = df.sample(min(5000, len(df)), random_state=42)
+        sample_size = len(sample)
         vecs   = np.stack([_build_feature_vector(r) for _, r in sample.iterrows()])
         vecs  /= (np.linalg.norm(vecs, axis=1, keepdims=True) + 1e-9)
         index  = faiss.IndexFlatL2(vecs.shape[1])
@@ -56,6 +61,7 @@ def run(df: pd.DataFrame) -> Dict[str, Any]:
         threshold  = float(np.percentile(avg_dist, 95))
         outlier_mask = avg_dist > threshold
         nn_flagged = sample.iloc[outlier_mask]["twin_id"].tolist()
+        faiss_used = True
     except Exception:
         pass  # faiss optional
 
@@ -78,9 +84,9 @@ def run(df: pd.DataFrame) -> Dict[str, Any]:
         f"Estimated fraud exposure: ₹{fraud_exposure:.1f} Crore\n"
         "Summarise the fraud risk in 2 sentences."
     )
-    narrative = call_llm_simple(SYSTEM, prompt, max_tokens=150)
+    narrative = call_llm_simple(SYSTEM, prompt, max_tokens=150, agent="fraud")
 
-    return {
+    out = {
         "total_fraud_risk_twins":         total_fraud,
         "known_fraud_flags":              int(len(known)),
         "suspicious_profiles":            int(len(suspicious)),
@@ -89,3 +95,29 @@ def run(df: pd.DataFrame) -> Dict[str, Any]:
         "top_suspicious":                 top10,
         "narrative":                      narrative,
     }
+
+    has_narrative = not narrative.startswith("[LLM unavailable")
+    # Coverage is high for rule-based flags (whole portfolio) but the FAISS layer
+    # only samples; reflect that honestly in the confidence.
+    coverage = 1.0 if not faiss_used else min(1.0, 0.7 + 0.3 * (sample_size / max(len(df), 1)))
+    confidence = compute_confidence(
+        data_coverage=coverage,
+        has_narrative=has_narrative,
+        within_expected_range=total_fraud <= len(df),
+    )
+    return attach(
+        out,
+        confidence=confidence,
+        why=(
+            f"{total_fraud:,} properties flagged: {len(known):,} prior-fraud records, "
+            f"{len(suspicious):,} suspicious patterns, {len(nn_flagged):,} FAISS anomalies."
+        ),
+        inputs_used=["prior_fraud_flag", "has_prior_claim", "claim_probability",
+                     "prior_claim_year", "vulnerability_index", "sum_insured_inr"],
+        evidence={
+            "faiss_enabled": faiss_used,
+            "faiss_sample_size": sample_size,
+            "anomaly_percentile_threshold": 95,
+            "estimated_exposure_crore": round(fraud_exposure, 2),
+        },
+    )

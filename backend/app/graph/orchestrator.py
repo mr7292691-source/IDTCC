@@ -122,6 +122,8 @@ def node_judge(state: IDTCCState) -> Dict[str, Any]:
 
 def node_assemble_forecast(state: IDTCCState) -> Dict[str, Any]:
     import pandas as _pd
+    from app.core.guardrails import check_consistency
+
     cyclone   = state["cyclone_params"]
     risk      = state.get("risk_output",     {})
     claims    = state.get("claims_output",   {})
@@ -129,6 +131,27 @@ def node_assemble_forecast(state: IDTCCState) -> Dict[str, Any]:
     reserve   = state.get("reserve_output",  {})
     resource  = state.get("resource_output", {})
     weather   = state.get("weather_output",  {})
+
+    # ── Cross-agent consistency guardrail ────────────────────────────────────
+    consistency = check_consistency(state)
+
+    # ── Aggregate per-agent confidence ───────────────────────────────────────
+    agent_confidences = {
+        name: out.get("confidence")
+        for name, out in (
+            ("weather",  weather),  ("risk",     risk),
+            ("claims",   claims),   ("fraud",    fraud),
+            ("reserve",  reserve),  ("resource", resource),
+            ("alerts",   state.get("alerts_output", {})),
+        )
+        if isinstance(out, dict) and out.get("confidence") is not None
+    }
+    mean_conf = (
+        round(sum(agent_confidences.values()) / len(agent_confidences), 3)
+        if agent_confidences else 0.0
+    )
+    # Penalise overall confidence by any cross-agent contradictions.
+    overall_confidence = round(mean_conf * consistency["consistency_score"], 3)
 
     forecast = {
         "event_name":             cyclone.get("name", "NIVAR"),
@@ -148,6 +171,10 @@ def node_assemble_forecast(state: IDTCCState) -> Dict[str, Any]:
         "storm_severity_index":   weather.get("storm_severity_index", 0.0),
         "primary_hazards":        weather.get("primary_hazards", []),
         "top_loss_areas":         claims.get("top_loss_areas_crore", {}),
+        # ── Confidence + guardrail summary ───────────────────────────────────
+        "overall_confidence":     overall_confidence,
+        "agent_confidences":      agent_confidences,
+        "consistency":            consistency,
     }
 
     # Executive summary

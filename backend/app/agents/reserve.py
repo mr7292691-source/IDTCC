@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 import pandas as pd
 from app.core.llm import call_llm_simple
+from app.core.agent_base import instrument, attach, compute_confidence
 
 
 SYSTEM = (
@@ -11,6 +12,7 @@ SYSTEM = (
 )
 
 
+@instrument("reserve")
 def run(df: pd.DataFrame, claims_output: Dict[str, Any]) -> Dict[str, Any]:
     expected_loss = claims_output.get("expected_total_loss_crore", 0.0)
 
@@ -37,9 +39,9 @@ def run(df: pd.DataFrame, claims_output: Dict[str, Any]) -> Dict[str, Any]:
         f"Adequacy ratio: {adequacy:.3f}\n"
         "State the reserve recommendation."
     )
-    narrative = call_llm_simple(SYSTEM, prompt, max_tokens=150)
+    narrative = call_llm_simple(SYSTEM, prompt, max_tokens=150, agent="reserve")
 
-    return {
+    out = {
         "base_reserve_crore":               expected_loss,
         "ibnr_crore":                       ibnr,
         "cat_buffer_crore":                 cat_buffer,
@@ -48,3 +50,27 @@ def run(df: pd.DataFrame, claims_output: Dict[str, Any]) -> Dict[str, Any]:
         "scenarios":                        scenarios,
         "narrative":                        narrative,
     }
+
+    has_narrative = not narrative.startswith("[LLM unavailable")
+    # If upstream claims produced no expected loss, reserve is undefined → low confidence.
+    has_input = expected_loss > 0
+    confidence = compute_confidence(
+        data_coverage=1.0 if has_input else 0.3,
+        has_narrative=has_narrative,
+        within_expected_range=total_reserve >= expected_loss,
+    )
+    return attach(
+        out,
+        confidence=confidence,
+        why=(
+            f"Total reserve ₹{total_reserve:.1f}Cr = expected loss ₹{expected_loss:.1f}Cr "
+            f"+ 18% IBNR + 25% catastrophe buffer (adequacy ratio {adequacy:.2f})."
+        ),
+        inputs_used=["claims_output.expected_total_loss_crore"],
+        evidence={
+            "ibnr_loading_pct": 18,
+            "cat_buffer_pct": 25,
+            "adequacy_ratio": adequacy,
+            "sensitivity_scenarios": scenarios,
+        },
+    )

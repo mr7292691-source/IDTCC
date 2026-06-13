@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any, Dict
 from app.core.llm import call_llm_simple
+from app.core.agent_base import instrument, attach, compute_confidence
 
 
 SYSTEM = (
@@ -12,6 +13,7 @@ SYSTEM = (
 )
 
 
+@instrument("weather")
 def run(cyclone: Dict[str, Any], location: str) -> Dict[str, Any]:
     name       = cyclone.get("name", "UNKNOWN")
     wind       = cyclone.get("max_wind_kmh", 180)
@@ -43,9 +45,9 @@ def run(cyclone: Dict[str, Any], location: str) -> Dict[str, Any]:
         f"Location: {location}\n"
         f"Provide a tactical weather assessment for insurance response teams."
     )
-    narrative = call_llm_simple(SYSTEM, prompt, max_tokens=300)
+    narrative = call_llm_simple(SYSTEM, prompt, max_tokens=300, agent="weather")
 
-    return {
+    out = {
         "storm_name":          name,
         "category":            category,
         "max_wind_kmh":        wind,
@@ -57,3 +59,25 @@ def run(cyclone: Dict[str, Any], location: str) -> Dict[str, Any]:
         "storm_surge_m":       2.5 if wind >= 150 else 1.2,
         "narrative":           narrative,
     }
+
+    has_narrative = not narrative.startswith("[LLM unavailable")
+    in_range = 0.0 <= severity <= 10.0 and len(track) > 0
+    confidence = compute_confidence(
+        data_coverage=1.0 if track else 0.7,
+        has_narrative=has_narrative,
+        within_expected_range=in_range,
+    )
+    return attach(
+        out,
+        confidence=confidence,
+        why=(
+            f"Severity {severity}/10 derived from max wind {wind} km/h, "
+            f"landfall ETA {eta}h, and impact radius {radius} km."
+        ),
+        inputs_used=["max_wind_kmh", "landfall_eta_hours", "radius_km", "cyclone_track"],
+        evidence={
+            "severity_formula": "0.4*wind/250 + 0.3*(120-eta)/120 + 0.3*min(radius/150,1) scaled to 0-10",
+            "track_waypoints": len(track),
+            "coastal_surge_triggered": any(wp.get("lat", 0) < 14 for wp in track),
+        },
+    )

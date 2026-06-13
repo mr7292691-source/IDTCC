@@ -1,6 +1,30 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Dict, List, Optional
+
+
+# ── Shared envelope models ────────────────────────────────────────────────────
+
+class Explainability(BaseModel):
+    """Why a decision was made, what fed it, and the supporting evidence."""
+    why: str
+    inputs_used: List[str] = []
+    evidence: Dict[str, Any] = {}
+
+
+class _AgentOutput(BaseModel):
+    """Base for agent outputs.
+
+    `extra="allow"` is deliberate: agent payloads evolve faster than the schema,
+    and FastAPI's response_model filtering would otherwise silently drop fields
+    the frontend relies on (the historical source of schema drift). Every agent
+    output therefore carries the full envelope plus any domain extras.
+    """
+    model_config = ConfigDict(extra="allow")
+
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
+    explainability: Optional[Explainability] = None
+    narrative: Optional[str] = None
 
 
 class SimulationRequest(BaseModel):
@@ -35,15 +59,17 @@ class ZoneStats(BaseModel):
     total_loss: float
 
 
-class RiskOutput(BaseModel):
+class RiskOutput(_AgentOutput):
     twins_in_impact_radius: int
     total_portfolio_twins: int
     exposure_pct: float
     top10_highest_vulnerability: List[Dict[str, Any]]
     by_flood_zone: Dict[str, Any]
+    by_flood_zone_loss_crore: Dict[str, float] = {}
+    total_exposure_bn_inr: float = 0.0
 
 
-class ClaimsOutput(BaseModel):
+class ClaimsOutput(_AgentOutput):
     expected_claim_count: int
     expected_total_loss_crore: float
     red_twin_count: int
@@ -51,20 +77,22 @@ class ClaimsOutput(BaseModel):
     top_loss_areas_crore: Dict[str, float]
 
 
-class FraudOutput(BaseModel):
+class FraudOutput(_AgentOutput):
     total_fraud_risk_twins: int
     known_fraud_flags: int
     suspicious_profiles: int
+    faiss_anomaly_count: int = 0
     estimated_fraud_exposure_crore: float
     top_suspicious: List[Dict[str, Any]]
 
 
-class ReserveOutput(BaseModel):
+class ReserveOutput(_AgentOutput):
     base_reserve_crore: float
     ibnr_crore: float
     cat_buffer_crore: float
     total_recommended_reserve_crore: float
     reserve_adequacy_ratio: float
+    scenarios: Dict[str, float] = {}
 
 
 class DeploymentZone(BaseModel):
@@ -76,7 +104,7 @@ class DeploymentZone(BaseModel):
     top_area: str
 
 
-class ResourceOutput(BaseModel):
+class ResourceOutput(_AgentOutput):
     adjusters_needed: int
     deployment_zones: int
     adjusters_per_zone: float
@@ -85,13 +113,15 @@ class ResourceOutput(BaseModel):
     deployment_strategy: str
 
 
-class AlertOutput(BaseModel):
+class AlertOutput(_AgentOutput):
     total_alerts: int
     critical_alerts: int
     alerts: List[Dict[str, Any]]
 
 
 class JudgeScore(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     factual_accuracy: float
     completeness: float
     actionability: float
@@ -101,16 +131,28 @@ class JudgeScore(BaseModel):
     verdict: str
     approved: bool
     critique: str
+    improvements: List[str] = []
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
 
 
 class JudgeOutput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     weather: Optional[JudgeScore] = None
     claims: Optional[JudgeScore] = None
     resource: Optional[JudgeScore] = None
     executive: Optional[JudgeScore] = None
 
 
+class ConsistencyReport(BaseModel):
+    consistent: bool
+    consistency_score: float
+    issues: List[str] = []
+
+
 class ForecastResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     event_name: str
     simulation_timestamp: str
     location: str
@@ -129,6 +171,11 @@ class ForecastResponse(BaseModel):
     primary_hazards: List[str]
     top_loss_areas: Dict[str, float]
     executive_summary: str
+    # Confidence + guardrail summary
+    overall_confidence: float = Field(0.0, ge=0.0, le=1.0)
+    agent_confidences: Dict[str, float] = {}
+    consistency: Optional[ConsistencyReport] = None
+    # Full nested agent outputs
     risk: Optional[RiskOutput] = None
     claims: Optional[ClaimsOutput] = None
     fraud: Optional[FraudOutput] = None

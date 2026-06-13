@@ -7,15 +7,31 @@ Mirrors the OpenAI-compatible vLLM pattern from build_airbnb_agent_mcp.ipynb:
     model     = OpenAIModel("Qwen3-14B", provider=provider)
 
 Here we wrap that in LangChain's ChatOpenAI so the existing LangGraph graph,
-LangSmith tracing, and agent nodes require zero changes.
+LangSmith tracing, and agent nodes require zero changes. Adds: automatic retry
+with exponential backoff, token-usage metrics, and a structured-JSON helper
+backed by the guardrails module.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 from functools import lru_cache
+from typing import Any, Dict, Optional
+
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.config import settings
+from app.core.guardrails import extract_json
+from app.core.logging_config import get_logger, log_event
+from app.core.metrics import METRICS
+
+log = get_logger("idtcc.llm")
 
 
 def _configure_langsmith() -> None:
@@ -47,7 +63,6 @@ def get_llm(temperature: float = 0.3):
         from langchain_openai import ChatOpenAI
 
         # Qwen3 thinking models: disable chain-of-thought for structured outputs.
-        # Passed as extra request body field to vLLM's chat completions endpoint.
         extra_body: dict = {}
         if settings.vllm_model_has_thinking:
             extra_body["chat_template_kwargs"] = {"enable_thinking": False}
@@ -57,7 +72,9 @@ def get_llm(temperature: float = 0.3):
             base_url=settings.vllm_base_url,
             api_key=settings.vllm_api_key,
             temperature=temperature,
-            max_tokens=1024,
+            max_tokens=settings.vllm_max_tokens,
+            timeout=settings.llm_timeout_seconds,
+            max_retries=0,  # retries handled by tenacity below
             model_kwargs=extra_body if extra_body else {},
         )
 
@@ -69,7 +86,8 @@ def get_llm(temperature: float = 0.3):
             model=settings.anthropic_model,
             api_key=settings.anthropic_api_key,
             temperature=temperature,
-            max_tokens=1024,
+            max_tokens=settings.vllm_max_tokens,
+            timeout=settings.llm_timeout_seconds,
         )
 
     raise RuntimeError(
@@ -78,20 +96,62 @@ def get_llm(temperature: float = 0.3):
     )
 
 
-def call_llm_simple(system: str, user: str, max_tokens: int = 512) -> str:
-    """Synchronous LLM call. Strips Qwen3 thinking blocks; returns fallback on error."""
+def _record_tokens(response: Any, agent: str) -> None:
+    """Best-effort token accounting from a LangChain response."""
     try:
+        meta = getattr(response, "usage_metadata", None) or {}
+        total = meta.get("total_tokens") or 0
+        if total:
+            METRICS.inc("idtcc_llm_tokens_total", float(total), agent=agent)
+            METRICS.inc("idtcc_llm_calls_total", agent=agent)
+    except Exception:  # noqa: BLE001 — never let metrics break inference
+        pass
+
+
+def _invoke_with_retry(system: str, user: str, *, agent: str = "unknown"):
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(settings.llm_max_retries + 1),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=8),
+        retry=retry_if_exception_type(Exception),
+    )
+    def _call():
         llm = get_llm()
-        from langchain_core.messages import HumanMessage, SystemMessage
+        return llm.invoke([SystemMessage(content=system), HumanMessage(content=user)])
 
-        msgs = [SystemMessage(content=system), HumanMessage(content=user)]
-        response = llm.invoke(msgs)
-        text = response.content
+    response = _call()
+    _record_tokens(response, agent)
+    return response
 
-        # Strip <think>...</think> if the model emitted reasoning traces
+
+def call_llm_simple(system: str, user: str, max_tokens: int = 512,
+                    agent: str = "unknown") -> str:
+    """Synchronous LLM call with retry. Strips Qwen3 thinking; safe fallback on error."""
+    try:
+        response = _invoke_with_retry(system, user, agent=agent)
+        text = response.content if isinstance(response.content, str) else str(response.content)
         if settings.vllm_model_has_thinking and "<think>" in text:
             text = _strip_thinking(text)
-
         return text.strip()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
+        METRICS.inc("idtcc_llm_failures_total", agent=agent)
+        log_event(log, logging.WARNING, "llm.fallback", agent=agent, error=str(exc))
         return f"[LLM unavailable: {exc}]"
+
+
+def call_llm_json(system: str, user: str, *, agent: str = "unknown",
+                  fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """LLM call that returns a validated dict, applying the JSON guardrail.
+
+    Always returns a dict. On any parse/transport failure returns `fallback`
+    (or `{}`) so callers never crash on malformed model output.
+    """
+    raw = call_llm_simple(system, user, agent=agent)
+    parsed = extract_json(raw)
+    if parsed is None:
+        METRICS.inc("idtcc_llm_json_parse_failures_total", agent=agent)
+        log_event(log, logging.WARNING, "llm.json_parse_failed", agent=agent)
+        return dict(fallback or {})
+    return parsed

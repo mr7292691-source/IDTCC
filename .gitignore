@@ -1,3 +1,6 @@
 sample_project_for_llm_usage_local/
 node_modules
 .venv/
+.claude/
+.github/
+*pptx

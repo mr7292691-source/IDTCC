@@ -1,6 +1,30 @@
 # IDTCC — Insurance Digital Twin Command Center
 
-**AMD AI Hackathon** · 50,000 living property twins · 35 Indian cities · Seven LangGraph agents · Real-time OSM + GDACS data · LangSmith tracing
+**AMD AI Hackathon** · 50,000 living property twins · 35 Indian cities · Eight LangGraph agents · Real-time OSM + GDACS data · LangSmith tracing
+
+---
+
+## Production deliverables
+
+| Area | Where |
+|---|---|
+| Architecture guide | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| API reference | [docs/API.md](docs/API.md) |
+| Developer guide | [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) |
+| Operations / monitoring / DR | [docs/OPERATIONS.md](docs/OPERATIONS.md) |
+| AMD MI300X deployment & tuning | [docs/AMD_DEPLOYMENT.md](docs/AMD_DEPLOYMENT.md) |
+| Benchmark report + harness | [docs/BENCHMARK_REPORT.md](docs/BENCHMARK_REPORT.md) · [scripts/benchmark_vllm.py](scripts/benchmark_vllm.py) |
+| LLM evaluation + harness | [docs/LLM_EVALUATION.md](docs/LLM_EVALUATION.md) · [scripts/eval_models.py](scripts/eval_models.py) |
+| Demo script | [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) |
+| Judge Q&A prep | [docs/JUDGE_QA.md](docs/JUDGE_QA.md) |
+| Hackathon deck | [IDTCC_Hackathon.pptx](IDTCC_Hackathon.pptx) · [scripts/generate_ppt.py](scripts/generate_ppt.py) |
+| CI + security scanning | [.github/workflows/ci.yml](.github/workflows/ci.yml) |
+
+**Production features added:** every agent returns `confidence` + `explainability`;
+cross-agent consistency guardrails; LLM retry + JSON validation + vLLM→Anthropic
+failover; Prometheus `/metrics` + structured logging + readiness/liveness probes;
+incremental SSE streaming; shared frontend⇄backend contract types; pytest suite.
+Quick start below; details in the docs above.
 
 ---
 
@@ -184,7 +208,6 @@ All LangChain + LangGraph agent calls are automatically traced. View at **smith.
 DEFAULT_LOCATION=CHN           # default city code
 DEFAULT_TWIN_COUNT=50000       # property twins per simulation
 LOG_LEVEL=INFO
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
 ---
@@ -309,7 +332,7 @@ IDTCC/
 │   ├── requirements.txt
 │   ├── .env.example                    → copy to .env and fill keys
 │   └── app/
-│       ├── main.py                     FastAPI app, CORS, lifespan
+│       ├── main.py                     FastAPI app, metrics, health, lifespan
 │       ├── config.py                   pydantic-settings (all env vars)
 │       ├── models/schemas.py           Pydantic request/response models
 │       ├── core/
@@ -404,10 +427,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 curl "https://overpass-api.de/api/interpreter" -d "data=[out:json];node(1);out;"
 ```
 
-**CORS error in browser**
-```env
-# Add your frontend origin to backend/.env:
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+**Cross-origin request blocked in browser**
+```
+# The backend does not enable CORS. Serve the frontend and API from the same
+# origin (e.g. a reverse proxy), or use the Vite dev proxy in vite.config.js:
+#   server: { proxy: { '/api': 'http://localhost:8000', '/health': 'http://localhost:8000' } }
 ```
 
 **LangSmith traces not appearing**

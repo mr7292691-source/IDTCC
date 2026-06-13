@@ -101,30 +101,53 @@ async def stream_simulation(req: SimulationRequest):
 
     async def event_generator() -> AsyncGenerator[str, None]:
         graph = get_graph()
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+        _SENTINEL = object()
 
-        def _stream():
-            events = []
-            for event in graph.stream(initial_state, stream_mode="updates"):
-                events.append(event)
-            return events
+        def _produce():
+            """Run the (synchronous) graph stream on a worker thread, pushing
+            each node's update onto the asyncio queue the moment it is produced
+            so the client sees agents complete live rather than all at once."""
+            try:
+                for event in graph.stream(initial_state, stream_mode="updates"):
+                    loop.call_soon_threadsafe(queue.put_nowait, ("event", event))
+            except Exception as exc:  # noqa: BLE001
+                loop.call_soon_threadsafe(queue.put_nowait, ("error", str(exc)))
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, ("done", _SENTINEL))
+
+        # Kick off the producer without blocking the event loop.
+        producer = asyncio.create_task(asyncio.to_thread(_produce))
+
+        # Announce start so the UI can render the pipeline skeleton immediately.
+        yield f"data: {json.dumps({'agent': 'system', 'status': 'start'})}\n\n"
 
         try:
-            events = await asyncio.to_thread(_stream)
-            for event in events:
-                for node_name, node_output in event.items():
+            while True:
+                kind, data = await queue.get()
+                if kind == "done":
+                    break
+                if kind == "error":
+                    yield f"data: {json.dumps({'agent': 'system', 'status': 'error', 'message': data})}\n\n"
+                    continue
+                for node_name, node_output in data.items():
                     payload = json.dumps({
                         "agent": node_name,
                         "status": "done",
                         "output": {k: v for k, v in node_output.items()
-                                   if k not in ("twins_records",)}
+                                   if k not in ("twins_records",)},
                     }, default=str)
                     yield f"data: {payload}\n\n"
-        except Exception as exc:
-            yield f"data: {json.dumps({'agent': 'system', 'status': 'error', 'message': str(exc)})}\n\n"
         finally:
+            await producer
             yield "data: {\"agent\": \"system\", \"status\": \"complete\"}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/locations")
