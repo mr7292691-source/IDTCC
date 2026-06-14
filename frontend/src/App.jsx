@@ -30,8 +30,8 @@ function LoadingScreen({ message }) {
 
       <div style={{ textAlign: 'center' }}>
         <div className="label-upper" style={{ color: '#7e7e7e', marginBottom: 8 }}>AMD AI Hackathon</div>
-        <h1 className="display-sm" style={{ marginBottom: 4 }}>IDTCC</h1>
-        <p className="body-sm">Insurance Digital Twin Command Center</p>
+        <h1 className="display-sm" style={{ marginBottom: 4 }}>LifeShield AI</h1>
+        <p className="body-sm">Before The Storm Hits, We Already Know</p>
       </div>
 
       <div className="spinner" />
@@ -41,7 +41,7 @@ function LoadingScreen({ message }) {
       </p>
 
       <div className="caption" style={{ position: 'absolute', bottom: 24 }}>
-        50,000 living property twins · AMD Instinct MI300X · vLLM · PydanticAI
+        Citizen + property digital twins · 16 agents · AMD Instinct MI300X · vLLM · LangGraph
       </div>
     </div>
   );

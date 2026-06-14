@@ -2,20 +2,20 @@ import MStripe from './MStripe.jsx';
 
 const FOOTER_COLS = [
   {
-    title: 'IDTCC Platform',
-    links: ['Command Center', 'Portfolio Baseline', 'Live Map', 'Counterfactual Simulator'],
+    title: 'LifeShield Platform',
+    links: ['City Command', 'Alert Console', 'Live Map', 'Counterfactual Simulator'],
   },
   {
-    title: 'AI Agents',
-    links: ['Weather Intelligence', 'Risk Exposure', 'Claims Forecast', 'Fraud Detection'],
+    title: 'Life-Safety Agents',
+    links: ['Vulnerable Population', 'Shelter Allocation', 'Evacuation Planning', 'Rescue Priority'],
   },
   {
-    title: 'Operations',
-    links: ['Reserve Calculation', 'Resource Planning', 'Customer Alerts', 'Safe Zones'],
+    title: 'Intelligence',
+    links: ['Sensor Intelligence', 'Infrastructure Risk', 'Damage Assessment', 'LLM-as-Judge'],
   },
   {
     title: 'Technology',
-    links: ['AMD Instinct MI300X', 'ROCm + vLLM', 'PydanticAI', 'LLM-as-Judge'],
+    links: ['AMD Instinct MI300X', 'ROCm + vLLM', 'Qwen3-14B', 'LangGraph'],
   },
 ];
 
@@ -37,10 +37,10 @@ export default function Footer() {
 
         <div style={{ borderTop: '1px solid #262626', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <p style={{ fontSize: 12, color: '#7e7e7e', letterSpacing: 0.5 }}>
-            © 2025 IDTCC — Insurance Digital Twin Command Center. AMD AI Hackathon.
+            © 2025 LifeShield AI — Disaster Intelligence Platform. AMD AI Hackathon.
           </p>
           <p style={{ fontSize: 12, color: '#7e7e7e' }}>
-            Powered by AMD Instinct MI300X · ROCm · vLLM · PydanticAI
+            Powered by AMD Instinct MI300X · ROCm · vLLM · Qwen3-14B
           </p>
         </div>
       </div>

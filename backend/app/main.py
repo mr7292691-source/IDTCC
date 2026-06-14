@@ -42,12 +42,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="IDTCC — Insurance Digital Twin Command Center",
+    title="LifeShield AI — Disaster Intelligence Platform",
     description=(
-        "50,000 living property twins. One catastrophe simulation. "
-        "Seven AI agents orchestrated by LangGraph. Traced by LangSmith."
+        "Digital twins of citizens, property, shelters and infrastructure. "
+        "16 AI agents orchestrated by LangGraph on AMD MI300X. "
+        "Two lenses: insurance loss forecasting and life-safety response."
     ),
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -86,7 +87,7 @@ app.include_router(alerts.router,     prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "IDTCC", "version": "1.0.0"}
+    return {"status": "ok", "service": "LifeShield AI", "version": "2.0.0"}
 
 
 @app.get("/health/live")

@@ -27,8 +27,8 @@ function BMWMLogo() {
         <text x="18" y="24" textAnchor="middle" fontSize="18" fontWeight="700" fill="#fff" fontFamily="Inter,sans-serif">M</text>
       </svg>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7e7e7e', lineHeight: 1 }}>IDTCC</div>
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#fff', lineHeight: 1.2 }}>Insurance Digital Twin</div>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7e7e7e', lineHeight: 1 }}>LifeShield AI</div>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#fff', lineHeight: 1.2 }}>Disaster Intelligence</div>
       </div>
     </div>
   );
