@@ -1,6 +1,7 @@
 import { useIDTCC } from '../../context/IDTCCContext.jsx';
 import { LOCATION_CATALOGUE } from '../../data/locationCatalogue.js';
 import MStripe from './MStripe.jsx';
+import ShieldLogo from './Logo.jsx';
 
 const NAV_ITEMS = [
   { key: 'command',    label: 'Command Center' },
@@ -15,17 +16,11 @@ const NAV_ITEMS = [
   { key: 'backend',    label: '⬡ Backend API' },
 ];
 
-// BMW M logo as inline SVG (tricolor + M wordmark)
+// LifeShield AI logo — shield + heartbeat pulse
 function BMWMLogo() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-      {/* M Tricolor badge */}
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="12" height="36" fill="#0066b1"/>
-        <rect x="12" width="12" height="36" fill="#1c69d4"/>
-        <rect x="24" width="12" height="36" fill="#e22718"/>
-        <text x="18" y="24" textAnchor="middle" fontSize="18" fontWeight="700" fill="#fff" fontFamily="Inter,sans-serif">M</text>
-      </svg>
+      <ShieldLogo size={36} idSuffix="nav" />
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7e7e7e', lineHeight: 1 }}>LifeShield AI</div>
         <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#fff', lineHeight: 1.2 }}>Disaster Intelligence</div>

@@ -1,5 +1,6 @@
 import { useIDTCC } from './context/IDTCCContext.jsx';
 import TopNav from './components/Layout/TopNav.jsx';
+import ShieldLogo from './components/Layout/Logo.jsx';
 import Footer from './components/Layout/Footer.jsx';
 import CommandCenter from './components/views/CommandCenter.jsx';
 import Portfolio from './components/views/Portfolio.jsx';
@@ -20,13 +21,8 @@ function LoadingScreen({ message }) {
         <div className="m-stripe" />
       </div>
 
-      {/* BMW M Logo */}
-      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="21.3" height="64" fill="#0066b1"/>
-        <rect x="21.3" width="21.3" height="64" fill="#1c69d4"/>
-        <rect x="42.6" width="21.4" height="64" fill="#e22718"/>
-        <text x="32" y="42" textAnchor="middle" fontSize="32" fontWeight="700" fill="#fff" fontFamily="Inter,sans-serif">M</text>
-      </svg>
+      {/* LifeShield AI Logo */}
+      <ShieldLogo size={72} idSuffix="loading" />
 
       <div style={{ textAlign: 'center' }}>
         <div className="label-upper" style={{ color: '#7e7e7e', marginBottom: 8 }}>AMD AI Hackathon</div>
