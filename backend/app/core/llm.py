@@ -63,6 +63,10 @@ def get_llm(temperature: float = 0.3):
         from langchain_openai import ChatOpenAI
 
         # Qwen3 thinking models: disable chain-of-thought for structured outputs.
+        # This is a vLLM-specific request-body field, so it must go through
+        # ChatOpenAI's `extra_body` (forwarded into the request body) — NOT
+        # `model_kwargs`, which newer langchain-openai passes as top-level
+        # kwargs to Completions.create() and would reject.
         extra_body: dict = {}
         if settings.vllm_model_has_thinking:
             extra_body["chat_template_kwargs"] = {"enable_thinking": False}
@@ -75,7 +79,7 @@ def get_llm(temperature: float = 0.3):
             max_tokens=settings.vllm_max_tokens,
             timeout=settings.llm_timeout_seconds,
             max_retries=0,  # retries handled by tenacity below
-            model_kwargs=extra_body if extra_body else {},
+            extra_body=extra_body or None,
         )
 
     # ── Fallback: Anthropic cloud ────────────────────────────────────────────
