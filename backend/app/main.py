@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from app.config import settings
 from app.core.logging_config import configure_logging, get_logger, log_event, request_id_var
 from app.core.metrics import METRICS
-from app.routers import simulation, twins
+from app.routers import alerts, safety, simulation, twins
 
 # ── Configure logging + LangSmith before anything else ───────────────────────
 configure_logging(level=settings.log_level, json_logs=settings.json_logs)
@@ -32,7 +32,9 @@ _READY = {"value": False}
 async def lifespan(app: FastAPI):
     # Pre-warm the graph on startup so the first request is fast.
     from app.graph.orchestrator import get_graph
+    from app.graph.safety_orchestrator import get_safety_graph
     get_graph()
+    get_safety_graph()
     _READY["value"] = True
     log_event(log, logging.INFO, "startup.complete",
               provider=settings.llm_provider, model=settings.vllm_model)
@@ -78,6 +80,8 @@ async def request_context(request: Request, call_next):
 
 app.include_router(simulation.router, prefix="/api/v1")
 app.include_router(twins.router,      prefix="/api/v1")
+app.include_router(safety.router,     prefix="/api/v1")
+app.include_router(alerts.router,     prefix="/api/v1")
 
 
 @app.get("/health")

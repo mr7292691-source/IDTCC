@@ -3,14 +3,16 @@ import { LOCATION_CATALOGUE } from '../../data/locationCatalogue.js';
 import MStripe from './MStripe.jsx';
 
 const NAV_ITEMS = [
-  { key: 'command',   label: 'Command Center' },
-  { key: 'portfolio', label: 'Portfolio' },
-  { key: 'map',       label: 'Live Map' },
-  { key: 'agents',    label: 'Agents' },
-  { key: 'simulator', label: 'Simulator' },
-  { key: 'safezones', label: 'Safe Zones' },
-  { key: 'audit',     label: 'Audit' },
-  { key: 'backend',   label: '⬡ Backend API' },
+  { key: 'command',    label: 'Command Center' },
+  { key: 'lifeshield', label: '🛡 LifeShield' },
+  { key: 'alerts',     label: 'Alert Console' },
+  { key: 'portfolio',  label: 'Portfolio' },
+  { key: 'map',        label: 'Live Map' },
+  { key: 'agents',     label: 'Agents' },
+  { key: 'simulator',  label: 'Simulator' },
+  { key: 'safezones',  label: 'Safe Zones' },
+  { key: 'audit',      label: 'Audit' },
+  { key: 'backend',    label: '⬡ Backend API' },
 ];
 
 // BMW M logo as inline SVG (tricolor + M wordmark)

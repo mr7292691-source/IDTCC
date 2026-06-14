@@ -9,6 +9,8 @@ import Simulator from './components/views/Simulator.jsx';
 import SafeZones from './components/views/SafeZones.jsx';
 import AuditTrail from './components/views/AuditTrail.jsx';
 import BackendView from './components/views/BackendView.jsx';
+import LifeShield from './components/views/LifeShield.jsx';
+import AlertConsole from './components/views/AlertConsole.jsx';
 
 function LoadingScreen({ message }) {
   return (
@@ -46,14 +48,16 @@ function LoadingScreen({ message }) {
 }
 
 const VIEW_COMPONENTS = {
-  command:   CommandCenter,
-  portfolio: Portfolio,
-  map:       LiveMap,
-  agents:    AgentsView,
-  simulator: Simulator,
-  safezones: SafeZones,
-  audit:     AuditTrail,
-  backend:   BackendView,
+  command:    CommandCenter,
+  lifeshield: LifeShield,
+  alerts:     AlertConsole,
+  portfolio:  Portfolio,
+  map:        LiveMap,
+  agents:     AgentsView,
+  simulator:  Simulator,
+  safezones:  SafeZones,
+  audit:      AuditTrail,
+  backend:    BackendView,
 };
 
 export default function App() {

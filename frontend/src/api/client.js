@@ -167,6 +167,54 @@ export const api = {
     const qs = new URLSearchParams(params).toString();
     return _json(`/api/v1/twins${qs ? '?' + qs : ''}`);
   },
+
+  // ── LifeShield life-safety (Lens B) ───────────────────────────────────────
+
+  /** POST /api/v1/safety/run — full 16-agent life-safety pipeline (sync). */
+  runSafety: (params) =>
+    _json('/api/v1/safety/run', { method: 'POST', body: JSON.stringify(params) }),
+
+  /** POST /api/v1/safety/stream — SSE, each safety agent as it completes. */
+  streamSafety: async function* (params, onEvent = () => {}) {
+    const res = await _fetch(
+      '/api/v1/safety/stream',
+      { method: 'POST', body: JSON.stringify(params) },
+      { retries: 0, timeoutMs: 180_000 },
+    );
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split('\n\n');
+      buffer = chunks.pop() ?? '';
+      for (const chunk of chunks) {
+        const line = chunk.replace(/^data:\s*/, '').trim();
+        if (!line) continue;
+        try { const event = JSON.parse(line); onEvent(event); yield event; }
+        catch { /* ignore partial chunk */ }
+      }
+    }
+  },
+
+  /** GET /api/v1/safety/citizens — scored citizen sample + shelters for the map. */
+  safetyCitizens: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return _json(`/api/v1/safety/citizens${qs ? '?' + qs : ''}`);
+  },
+
+  /** GET /api/v1/alerts/meta — supported languages + channels. */
+  alertMeta: () => _json('/api/v1/alerts/meta', {}, { retries: 1, timeoutMs: 5000 }),
+
+  /** POST /api/v1/alerts/preview — render one personalized alert. */
+  previewAlert: (params) =>
+    _json('/api/v1/alerts/preview', { method: 'POST', body: JSON.stringify(params) }),
+
+  /** POST /api/v1/alerts/dispatch — simulated omni-channel campaign. */
+  dispatchAlerts: (params) =>
+    _json('/api/v1/alerts/dispatch', { method: 'POST', body: JSON.stringify(params) }),
 };
 
 export default api;
